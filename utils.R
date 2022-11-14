@@ -29,9 +29,15 @@ if (!require("gt")) {
   library(gt)
 }
 
+### Define a manual color vector for coloring the plots consistently ----
+basecolors <- RColorBrewer::brewer.pal(9, name = "Spectral") |>
+  gt::adjust_luminance(steps = -0.1)
 
-### Define a function for importing cytometry data ----
+colorPalette <- basecolors[c(3:1, 7:9)]
 
+
+
+### Defines a function for importing cytometry data ----
 importCytometry <- function(input.path) {
   # listing all of the flow cytometry files in their data/ subdirectory
   # importing the Flow Cytometry data using flowCore
@@ -43,7 +49,7 @@ importCytometry <- function(input.path) {
   # reading the data into a list
   flowData <- purrr::map(flowFiles, read.FCS)
 
-  # the lines below name the elements of the flowData list using metadata information
+  # the lines below name the elements of the flowData list using metadata information from the .fcs files themselves
   names(flowData) <- purrr::map_chr(.x = flowData, ~ {
     keyword(.x, keyword = c("EXPERIMENT NAME", "$SRC", "TUBE NAME")) |>
       unlist() |>
@@ -55,8 +61,7 @@ importCytometry <- function(input.path) {
   fs <- as(flowData, "flowSet")
 
 
-  # we will store the metadata information in a tibble for later use
-
+  # lastly, we will store the metadata information in a tibble for later use (including colors, etc)
   metadata <- names(flowData) %>%
     tibble("SampleName" = .) %>%
     dplyr::filter(!str_detect(string = SampleName, pattern = "LT")) %>%
@@ -79,37 +84,38 @@ importCytometry <- function(input.path) {
                       "pSEVA231-P*j100*-*gfplva*")
         ),
       light_color = case_when(
-        readableName == "pSEVA231-∅" ~ basecolors[1],
-        readableName == "pSEVA231-*gfplva*" ~ basecolors[2],
-        readableName == "pSEVA231-P*j100*-*gfplva*" ~ basecolors[3],
-        readableName == "pVANT-∅" ~ basecolors[4],
-        readableName == "pVANT-*gfplva*" ~ basecolors[5],
-        readableName == "pVANT-P*j100*-*gfplva*" ~basecolors[6],
+        readableName == "pSEVA231-∅" ~ colorPalette[1],
+        readableName == "pSEVA231-*gfplva*" ~ colorPalette[2],
+        readableName == "pSEVA231-P*j100*-*gfplva*" ~ colorPalette[3],
+        readableName == "pVANT-∅" ~ colorPalette[4],
+        readableName == "pVANT-*gfplva*" ~ colorPalette[5],
+        readableName == "pVANT-P*j100*-*gfplva*" ~colorPalette[6],
       ),
       dark_color = gt::adjust_luminance(light_color, -1)
     )
 
+  # returning the final result
   return <- dplyr::lst(flowSet = fs, names = names(flowData), metadata = metadata)
 
 }
 
 
-### retrieving data as a tibble ----
-
+### Defines a function for retrieving cytometry data as a tibble ----
 cyto2tibble <- function(fs, names, metadata) {
-fs_data_accessor <- glue::glue("fs@frames$`{names}`@exprs")
-fs_tibble <- purrr::map_dfr(fs_data_accessor,
-                            ~ {
-                              tibble::tibble(
-                                SampleName = stringr::str_extract(.x,
-                                                                  pattern = "(?<=\\$`).+(?=`@)"),
-                                as_tibble(eval(parse(text = .x))))})  %>%
-                                left_join(metadata)
+  fs_data_accessor <- glue::glue("fs@frames$`{names}`@exprs")
+  fs_tibble <- purrr::map_dfr(fs_data_accessor,
+                              ~ {
+                                tibble::tibble(
+                                  SampleName = stringr::str_extract(.x,
+                                                                    pattern = "(?<=\\$`).+(?=`@)"),
+                                  as_tibble(eval(parse(text = .x))))})  %>%
+                                  left_join(metadata)
 }
 
 
 
-### define function for calculating gate metrics ----
+### Defines a function for calculating gate percentages ----
+
 calcGated <- function(original_data, gated_data) {
 
   pre_counts <- count(original_data, SampleName, name = "pre_gating")
@@ -120,13 +126,8 @@ calcGated <- function(original_data, gated_data) {
   return(metrics)
 }
 
-### Create vectors for coloring the plots ----
-vect1 <- RColorBrewer::brewer.pal(9, name = "Spectral") |> gt::adjust_luminance(steps = -0.1)
-# scales::show_col(vect2)
-basecolors <- vect1[c(3:1, 7:9)]
 
-
-### automatic plotting functions ----
+### Defines custom plotting functions ----
 
 
 vizParam <- function(replicate_choice, data) {
@@ -245,63 +246,3 @@ distributionPlot <- function(data, visParam, main, threshold, percentSize = 5.75
   return(plot)
 
 }
-
-
-
-
-
-
-
-
-
-
-
-# simpleRidge <- function(data, visParam, threshold) {
-#
-#   percentages <- data %>%
-#     dplyr::filter(replicate == vis$replicate_choice) %>%
-#     mutate(abv_thresh = if_else(`FITC-A` >= threshold, "yes", "no")) %>%
-#     group_by(readableName, abv_thresh) %>%
-#     tally() %>%
-#     mutate(total = sum(n),
-#            percentage = (n/total)*100,
-#            percentage_formatted = glue::glue("{round(percentage, 1)}%")) %>%
-#     dplyr::filter(abv_thresh == "yes") %>%
-#     select(readableName, percentage_formatted)
-#
-#   plot <- data %>%
-#     dplyr::filter(replicate == replicate_choice ) %>%
-#     ggplot(aes(x = `FITC-A`, y = readableName, fill = readableName)) +
-#     geom_vline(xintercept = threshold, linetype = "dashed", color = "gray60") +
-#     geom_text(data = percentages,
-#               aes(y = readableName, x = threshold+100, label = percentage_formatted),
-#               position = position_nudge(y = 0.5),
-#               size = 5) +
-#     coord_cartesian(xlim=c(-100, 1e5)) +
-#     scale_x_flowjo_biexp(expand = expansion(add = c(0, 100))) +
-#     scale_y_discrete(expand = expansion(add = c(0.2, 1)), limits = rev, ) +
-#     scale_fill_manual(values = vis$fill_vector) +
-#     scale_color_manual(values = vis$color_vector) +
-#     geom_density_ridges(alpha = 0.8) +
-#     labs(y = "", x = "Fluorescence intensity (A. U. )") +
-#     theme(
-#
-#       plot.margin = margin(t = 0, r = 20, b = 0, l = 0),
-#       panel.background = element_blank(),
-#
-#       axis.line.y = element_blank(),
-#       axis.ticks.y = element_blank(),
-#       axis.text.y = ggtext::element_markdown(size = rel(1.6), color = "black"), #
-#
-#       axis.line.x = element_line(),
-#       axis.text.x = ggtext::element_markdown(size = rel(1.6), vjust = 0, color = "black"),
-#       axis.title.x = element_text(size = rel(1.6), margin = margin(20, 0, 0, 0), color = "black"),
-#
-#       panel.grid.major.y = element_line(colour = "gray90", size = 0.5, linetype = 1),
-#       panel.grid.major.x = element_blank(),
-#       panel.grid.minor = element_blank(),
-#       legend.position = "none"
-#     )
-#   return(plot)
-# }
-#
