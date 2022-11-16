@@ -13,23 +13,26 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## About this analysis
 
-This analysis depends on the `data/growth_curves` directory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is maintained at \<github.com/viana-guilherme/mipreadr\>. In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated Wells) for each biological replicate. The `.txt` files in the data directory come directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the plate designs used in each experiment, and are needed for the mipreadr workflow
+This analysis depends on the `data/growth_curves` directory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is available through [GitHub](github.com/viana-guilherme/mipreadr). In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated Wells) for each biological replicate. The `.txt` files in the data directory come directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the plate designs used in each experiment, and are needed for the mipreadr workflow
 
-## 0. Setting up the analysis
+## Setting up the analysis
 
-Let's start by loading the required packages and sourcing the utils.R script. If needed, uncomment the first line to install the development version of mipreadr before loading it.
+To start the analysis, we must first load the required packages. If needed, uncomment the line starting with `remotes::install_github()` line to install the development version of mipreadr before loading it.
 
 ```{r results='hide', error=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)    # loads the tidyverse...
+
 #remotes::install_github("viana-guilherme/mipreadr")
 library(mipreadr)     # loads the analysis package
-library(ggtext)       # package used for plotting
-library(gt)           # package used for some of the colors used
-library(ggh4x)
-library(multcompView)
-source("../utils.R")  # for this document, provides the color palette used
+
+# the packages below are also through this analysis, be sure to have those installed
+library(ggtext)       # used for plotting
+library(gt)           # used for helping define the color palettes
+library(ggh4x)        # used for plotting
+library(multcompView) # used for getting significance levels as letters in the Tukey test 
 ```
 
-## 1. Importing data
+## Importing data
 
 This is straightforward using the mipreadr workflow:
 
@@ -56,16 +59,25 @@ exp_list <- list(exp01, exp02, exp03)
 
 # collapsing the eperiment data with mergePlates()
 analysis <- mergePlates(exp_list)
-head(analysis) # checking the first few lines of the resulting data frame
+
+# checking the first few lines of the resulting data frame
+head(analysis)
 ```
 
 ## 2. Visualizing growth and normalized fluorescence curves
 
-Once we sucessfully read and pre-process data, we can explore the results using a variety of visualizations. In the code blocks below, we will plot the growth and the normalized fluorescence curves for the entire experiment.
+Once we have successfully read and pre-processed the data, we can explore the results using a variety of visualizations. In the code blocks below, we will plot the growth and the normalized fluorescence curves for the entire experiment.
 
-To start things off, we will append some metadata onto the analysis dataframe so that we have more flexibility for plotting:
+To start things off, we will append some metadata - including a custom color palette - onto the analysis data frame so that we have more flexibility for plotting:
 
 ```{r}
+
+### Define a manual color vector for coloring the plots consistently ----
+basecolors <- RColorBrewer::brewer.pal(9, name = "Spectral") |>
+  gt::adjust_luminance(steps = -0.1)
+
+colorPalette <- basecolors[c(3:1, 7:9)]
+
 # the modifications below are mainly cosmetic
 
 analysis <- analysis |>
@@ -203,7 +215,6 @@ analysis |>
   scale_fill_manual(values = fill_vector) +
   facet_wrap(~ readableCondition,  strip.position = "top", nrow = 2) +
   theme_light(base_size = 16) +
-  # coord_fixed(ratio = 0.2) +
   theme(axis.title.x = ggtext::element_markdown(size = rel(1.3), color = "black"),
         axis.text.x = ggtext::element_markdown(size = rel(1.2), color = "black"),
         axis.title.y = ggtext::element_markdown(size = rel(1.3), color = "black"),
@@ -229,19 +240,22 @@ analysis |>
 
 ## Investigating the fluorescence at 4h
 
-The repeat variable in the data
+To gain a better understanding of the differences between our bacterial strains carrying different plasmids, we will look in more detail at an intermediate point in the growth curve. The "Repeat" column in the dataset refers to the point collected by the machine in different moments of the experiment (1 being the first timepoint at To, 2 being the point taken after 30 minutes, 3 being the point taken after one hour...). We can choose the timepoint at 4 hours and save it in a `choosePoint` variable, so that we have a convenient way to subset our data.
 
 ```{r}
+# selecting the Repeat value that corresponds to the fourth hour of the experiment
 choosePoint <- 5
 
 ```
+
+Now we may proceed to the statistical analysis of the data. For this, after subsetting the original data to only include the point where Repeat is equal to choosePoint, we will adjust a linear model and perform the Tukey post-hoc test for multiple comparisons. With this, we will create a `tukey.lcd` with the letter codes for each significance group in our analysis.
 
 ```{r}
 
 # collect the individual replicates into a single table
 anova_dataset <- exp_list %>%
-  purrr::map_dfr(4) %>%
-  dplyr::filter(Repeat == choosePoint) %>% # we will select only the fifth repeat aka point 4 hours
+  purrr::map_dfr(4) %>% # return the fourth table within every element of the exp_list (the results)
+  dplyr::filter(Repeat == choosePoint) %>% # we are interested only the fifth repeat in the experiments
   dplyr::select(Sample, Condition, norm.GFP)
 
 # adjust the linear model
@@ -250,46 +264,56 @@ anova <- aov(formula = log(norm.GFP) ~ Sample * Condition, data = anova_dataset)
 # perform post-hoc correction and pairwise comparisons
 tukey <- TukeyHSD(anova)
 
-# 
+# convert the p-values to letter codes
 tukey.lcd <- multcompView::multcompLetters4(object = anova, comp = tukey, reversed = TRUE) %>%
-  purrr::pluck(3) %>%
-  purrr::pluck(1) %>%
-  enframe(name = "uniqueID", value = "tukeyCode")
+  purrr::pluck(3) %>% # extracting the information from the
+  purrr::pluck(1) %>% # deeply nested resulting file structure
+  enframe(name = "uniqueID", value = "tukeyCode") # save as a 2-column tibble
 
-
+# visualizing summary information for the ANOVA model
+summary(anova)
 ```
+
+After obtaining the ANOVA results, we may visualize the resulting information alongside the means for normalized fluorescence as below:
 
 ```{r fig.width=7, fig.align='center', warning=FALSE, message=FALSE}
 
-
+# first, let's define a "factor" with which to scale our data
 factor <- 1e4 # the factor allow us to make the numbers more manageable in the visualization
 factor_label <- str_count(factor, '0') # this will help us display the multiplication factor in a tidy way in the plot
 
+# now, onto the plotting:
 
+# we start by preprocessing the data a little
 analysis |>
-  # we will simplify the values by dividing them by the "factor" set above
+  # once again, we are only interested in the Repeat of interest
+  dplyr::filter(Repeat == choosePoint) |>
+  # we may simplify the values by dividing them by the "factor" set above
   mutate(norm.GFP_Mean = norm.GFP_Mean/factor,
          norm.GFP_SD = norm.GFP_SD/factor) |>
-  # we will only plot the point values of interest
-  dplyr::filter(Repeat == choosePoint) |>
-  # add the tukey results to the table for plotting
+  # add the tukey tet results to the dataset for convenient plotting
   left_join(tukey.lcd) |>
+  
+  # now we may call ggplot, as usual
   ggplot(aes(
     x = readableName,
     y = norm.GFP_Mean,
     fill = readableName)) +
   geom_bar(stat = "identity", position = "dodge", color = "black") +
+  #add the standard deviation bars
   geom_errorbar(aes(ymin = norm.GFP_Mean - norm.GFP_SD,
                     ymax = norm.GFP_Mean + norm.GFP_SD),
                 stat = "identity",
                 position = "dodge",
                 width = 0.1,
                 color = "black") +
+  # cosmetic changes to the plot
   guides(fill = guide_legend(title = "", byrow = TRUE), x = "axis_truncated") +
   scale_color_manual(values = color_vector) +
   scale_fill_manual(values = fill_vector) +
   facet_wrap(~ readableCondition,  strip.position = "bottom") +
   scale_y_continuous(n.breaks = 6) +
+  # adding the custom y-axis title
   labs(x = "", y = glue::glue("Normalized fluorescence (x10^{factor_label} A.U.)")) +
   theme_light(base_size = 20) +
   theme(axis.text.x = element_blank(),
