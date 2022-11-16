@@ -150,44 +150,27 @@ vizParam <- function(replicate_choice, data) {
 }
 
 
-raincloudPlot <- function(data, visParam) {
-
-  raincloud_plot <- data %>%
-    dplyr::filter(replicate == visParam$replicate_choice ) %>%
-    ggplot(aes(x = `FITC-A`, y = readableName, fill = readableName, color = readableName)) +
-    coord_cartesian(xlim=c(-100, 1e5)) +
-    scale_x_flowjo_biexp(expand = expansion(add = c(0, 100))) +
-    scale_y_discrete(expand = expansion(add = c(0.45, 0.75)), limits = rev) +
-    scale_fill_manual(values = visParam$fill_vector) +
-    scale_color_manual(values = visParam$color_vector) +
-    geom_density_ridges(scale = 0.5, position = position_nudge(y = 0.15), rel_min_height = 0.005) +
-    geom_point(size = 0.55, alpha = 0.1, position = position_jitter(height = .125, width = 1)) +
-    geom_boxplot(position = position_nudge(y = -0.2),
-                 width = .1,
-                 outlier.shape = NA) +
-    labs(y = "", x = "Fluorescence intensity (A. U. )") +
+plotGate <- function(data, polygon, metrics, replicate_choice) {
+  data %>%
+    dplyr::filter(replicate == replicate_choice) %>%
+    ggplot(aes(x = `FSC-A`, y = `FSC-H`)) +
+    geom_hex(bins = 48) +
+    geom_polygon(data = polygon, fill = NA, col = "red") +
+    geom_text(data = metrics %>% dplyr::filter(replicate == replicate_choice),
+              aes(label = glue::glue("{round(retained*100, digits = 2)}%")),
+              x = 2000, y = 2500, size = 6, color = "red") +
+    scale_fill_distiller(type = "div", palette = "RdYlBu") +
+    facet_wrap(~ readableName, nrow = 2) +
+    scale_x_flowjo_biexp() +
+    scale_y_flowjo_biexp() +
+    theme_classic() +
     theme(
-
-
-      panel.background = element_blank(),
-
-      axis.line.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      axis.text.y = ggtext::element_markdown(size = rel(1.6), color = "black"), #
-
-      axis.line.x = element_line(),
-      axis.text.x = ggtext::element_markdown(size = rel(1.6), vjust = 0, color = "black"),
-      axis.title.x = element_text(size = rel(1.6), margin = margin(20, 0, 0, 0), color = "black"),
-
-      panel.grid.major.y = element_line(colour = "gray90", size = 0.5, linetype = 1),
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor = element_blank(),
-      legend.position = "none"
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16),
+      strip.background = element_rect(linetype = 0, color = NULL),
+      strip.text = ggtext::element_markdown(size = 14)
     )
-
-  return(raincloud_plot)
 }
-
 
 distributionPlot <- function(data, visParam, main, threshold, percentSize = 5.75) {
 
