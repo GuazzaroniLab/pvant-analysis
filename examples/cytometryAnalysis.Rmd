@@ -1,0 +1,137 @@
+---
+title: "Flow cytometry data analysis"
+author: "Guilherme Marcelino Viana de Siqueira and María-Eugenia Guazzaroni"
+date: "November, 2022"
+output:
+  html_document:
+    css: css/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About this analysis
+
+This analysis depends on the `data/flow_cytometry` directory found in the root directory for this project. In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated Wells) for each biological replicate. Our analysis workflow majorly relies on the flowCore and flowStats packages, with additional packages (mostly from the tidyverse) being used for data visualization and summary
+
+## 0. Setting up the analysis
+
+We start by sourcing the utils.R script. This is a custom script that defines several functions for importing and processing data that we will use to have flexibility in the analysis while keeping this document fairly concise.
+
+```{r results='hide', error=FALSE, warning=FALSE, message=FALSE}
+source("../utils.R")
+```
+
+## 1. Importing data
+
+The first step is loading the cytometry data into R. For this, we will use the importCytometry() function that is defined in the utils.R script. This function returns a list containing a flowSet object, the file names, and the metadata information
+
+```{r message=FALSE}
+# for E. coli
+coli <- importCytometry("../data/flow_cytometry/Ecoli/")
+
+# for P. putida
+putida <- importCytometry("../data/flow_cytometry/Pputida/")
+```
+
+## 2. Gating and subsetting the data
+
+Once we sucessfully read and pre-process data, we can explore the results using a variety of visualizations. In the code blocks below, we will plot the growth and the normalized fluorescence curves for the entire experiment.
+
+To start things off, we will append some metadata onto the analysis dataframe so that we have more flexibility for plotting:
+
+```{r}
+putida_poly1 <- bind_cols("FSC-A" = c(10^2.65, 10^3.25, 10^4.6, 10^4.45), "FSC-H" = c(10^3, 10^2.95, 10^4.1, 10^4.375))
+putida_gate1 <- flowCore::polygonGate(putida_poly1, filterId = "putida_poly1")
+putida_filter1 <- flowCore::filter(putida$flowSet, putida_gate1)
+putida_P1 <- Subset(putida$flowSet, putida_filter1)
+
+coli_poly1 <- bind_cols("FSC-A" = c(10^2.65, 10^3.45, 10^4.8, 10^4.65), "FSC-H" = c(10^3, 10^2.95, 10^4.375, 10^4.6))
+coli_gate1 <- flowCore::polygonGate(coli_poly1, filterId = "coli_poly1")
+coli_filter1 <- flowCore::filter(coli$flowSet, coli_gate1)
+coli_P1 <- Subset(coli$flowSet, coli_filter1)
+
+```
+
+We also will define named `color` and `fill` vectors to consistently color our samples in the plots based on the dark_color and light_color columns we just created
+
+```{r warning=FALSE, message=FALSE}
+
+# accessing data as tibbles
+# 
+coli_tibble <- cyto2tibble(fs = coli$flowSet, names = coli$names, metadata = coli$metadata)
+putida_tibble <- cyto2tibble(fs = putida$flowSet, names = putida$names, metadata = putida$metadata)
+
+# the subsetted data - after the first gate
+coliSubset_tibble <- cyto2tibble(fs = coli_P1, names = coli$names, metadata = coli$metadata)
+putidaSubset_tibble <- cyto2tibble(fs = putida_P1, names = putida$names, metadata = putida$metadata)
+
+
+
+## calculating metrics ----
+
+putidaMetrics <- calcGated(putida_tibble, putidaSubset_tibble) %>% left_join(putida$metadata)
+coliMetrics <- calcGated(coli_tibble, coliSubset_tibble) %>% left_join(coli$metadata)
+
+```
+
+Here we plot the original data
+
+```{r}
+
+plotGate(data = putida_tibble,
+         polygon = putida_poly1,
+         metrics = putidaMetrics,
+         replicate_choice = "R3")
+
+```
+
+```{r}
+
+plotGate(data = coli_tibble,
+         polygon = coli_poly1,
+         metrics = coliMetrics,
+         replicate_choice = "R3")
+
+```
+
+
+Now we can plot the distributions
+
+```{r}
+
+
+visPutida <- vizParam("R3", putida)
+visColi <- vizParam("R3", coli)
+
+coli_Ridges <- distributionPlot(coliSubset_tibble, threshold = 10^2, main = "*E. coli* DH10B", visParam = visColi) +
+  theme(axis.text.y.right = element_blank(),
+        plot.margin = margin(t = 0, r = 10, b = 0, l = -10))
+putida_Ridges <- distributionPlot(putidaSubset_tibble, threshold = 10^2, main = "*P. putida* KT2440", visParam = visPutida) +
+  theme(axis.text.y.right = element_blank(),
+        plot.margin = margin(t = 0, r = 10, b = 0, l = -10))
+
+text_labels <- putida$metadata %>%
+  select(readableName) %>%
+  unique() %>%
+  ggplot(aes(label = readableName, y = readableName, x = 1)) +
+  ggtext::geom_textbox(box.color = NA,
+                       fill = NA,
+                       position = position_nudge(y = 0.5, x = 0.5),
+                       size = 5.5,
+                       halign = 1) +
+  scale_y_discrete(expand = expansion(add = c(0.2, 1)), limits = rev) +
+  theme_void() +
+  theme(
+    plot.margin = margin(t = 50, r = -15, b = 50, l = -10),
+    plot.background = element_rect(fill = "white", color = "white")
+  )
+
+
+ggpubr::ggarrange(text_labels, coli_Ridges, putida_Ridges, nrow = 1, widths = c(1.0, 1.9,1.9))
+
+
+```
+
+

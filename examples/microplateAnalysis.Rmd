@@ -1,0 +1,314 @@
+---
+title: "Microplate data analysis"
+author: "Guilherme Marcelino Viana de Siqueira and María-Eugenia Guazzaroni"
+date: "November, 2022"
+output:
+  html_document:
+    css: css/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About this analysis
+
+This analysis depends on the `data/growth_curves` directory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is maintained at \<github.com/viana-guilherme/mipreadr\>. In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated Wells) for each biological replicate. The `.txt` files in the data directory come directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the plate designs used in each experiment, and are needed for the mipreadr workflow
+
+## 0. Setting up the analysis
+
+Let's start by loading the required packages and sourcing the utils.R script. If needed, uncomment the first line to install the development version of mipreadr before loading it.
+
+```{r results='hide', error=FALSE, warning=FALSE, message=FALSE}
+#remotes::install_github("viana-guilherme/mipreadr")
+library(mipreadr)     # loads the analysis package
+library(ggtext)       # package used for plotting
+library(gt)           # package used for some of the colors used
+library(ggh4x)
+library(multcompView)
+source("../utils.R")  # for this document, provides the color palette used
+```
+
+## 1. Importing data
+
+This is straightforward using the mipreadr workflow:
+
+```{r message=FALSE}
+
+# reading the VictorX3 data into R using the mipreadr function addPlate()
+exp01 <- addPlate(file = "../data/growth_curves/2212.txt",
+                  layout = "../data/growth_curves/2212.xlsx",
+                  mode = "x3",
+                  normalizeFluorescence = TRUE)
+
+exp02 <- addPlate(file = "../data/growth_curves/2213.txt",
+                  layout = "../data/growth_curves/2213.xlsx",
+                  mode = "x3",
+                  normalizeFluorescence = TRUE)
+
+exp03 <- addPlate(file = "../data/growth_curves/2220.txt",
+                  layout = "../data/growth_curves/2220.xlsx",
+                  mode = "x3",
+                  normalizeFluorescence = TRUE)
+
+# preparing the list of experiments for analysis
+exp_list <- list(exp01, exp02, exp03)
+
+# collapsing the eperiment data with mergePlates()
+analysis <- mergePlates(exp_list)
+head(analysis) # checking the first few lines of the resulting data frame
+```
+
+## 2. Visualizing growth and normalized fluorescence curves
+
+Once we sucessfully read and pre-process data, we can explore the results using a variety of visualizations. In the code blocks below, we will plot the growth and the normalized fluorescence curves for the entire experiment.
+
+To start things off, we will append some metadata onto the analysis dataframe so that we have more flexibility for plotting:
+
+```{r}
+# the modifications below are mainly cosmetic
+
+analysis <- analysis |>
+  #this part helps making the names more tidy for the plot
+  mutate(uniqueID = glue::glue("{Sample}:{Condition}"),
+        readableName = case_when(
+              Sample == "pSEVA" ~ "pSEVA231-∅",
+              Sample == "pSEVA.GFP" ~ "pSEVA231-*gfplva*",
+              Sample == "pSEVA.P100.GFP" ~ "pSEVA231-P*j100*-*gfplva*",
+              Sample == "pVANT" ~ "pVANT-∅",
+              Sample == "pVANT.GFP" ~ "pVANT-*gfplva*",
+              Sample == "pVANT.P100.GFP" ~ "pVANT-P*j100*-*gfplva*"
+              ) %>%
+          # this part gives us a way to reorder the columns in the barplot
+          as_factor() %>%
+          fct_relevel(c("pSEVA231-∅",
+                        "pSEVA231-*gfplva*",
+                        "pSEVA231-P*j100*-*gfplva*",
+                        "pVANT-∅",
+                        "pVANT-*gfplva*",
+                        "pVANT-P*j100*-*gfplva*")
+          ),
+        # this part helps us plot the species names in italics using ggtext
+        readableCondition = case_when(
+              Condition == "Ecoli" ~ "*E. coli* DH10B",
+              Condition == "Pputida" ~ "*P. putida* KT2440",
+              ),
+        # this part attaches a specific color from our palette to a given sample
+        light_color = case_when(
+          readableName == "pSEVA231-∅" ~ colorPalette[1],
+          readableName == "pSEVA231-*gfplva*" ~ colorPalette[2],
+          readableName == "pSEVA231-P*j100*-*gfplva*" ~ colorPalette[3],
+          readableName == "pVANT-∅" ~ colorPalette[4],
+          readableName == "pVANT-*gfplva*" ~ colorPalette[5],
+          readableName == "pVANT-P*j100*-*gfplva*" ~ colorPalette[6]
+          ),
+        # this part provides a darker version of the color palette for specific effects
+        dark_color = adjust_luminance(light_color, -1)
+  )
+```
+
+We also will define named `color` and `fill` vectors to consistently color our samples in the plots based on the dark_color and light_color columns we just created
+
+```{r}
+
+color_vector <- analysis |>
+  select(readableName, dark_color) |>
+  distinct() |>
+  deframe()
+
+fill_vector <- analysis |>
+  select(readableName, light_color) |>
+  distinct() |>
+  deframe()
+
+```
+
+Finally, we can use `ggplot2` to plot the curves. First OD600 *versus* time:
+
+```{r fig.width=10, fig.align='center'}
+
+analysis |>
+  ggplot(aes(x = Repeat, y = `Absorbance@600_Mean`)) +
+  geom_point(aes(color = readableName, fill = readableName),
+                 stroke = 0.7, size = 3, alpha = 0.8) +
+  geom_ribbon(aes(ymin= `Absorbance@600_Mean` - `Absorbance@600_SD`,
+                  ymax= `Absorbance@600_Mean` + `Absorbance@600_SD`,
+                  fill = readableName),
+              alpha = 0.1) +
+  
+  # using a semilogarithmic scale with custom breaks
+  scale_y_continuous(trans = "log", breaks = c(0.005, 0.02, 0.08, 0.32)) +
+  # the line below converts the timepoints (x-axis) into half-hour periods
+  scale_x_continuous(labels = ~ {(.x - 1)/2}, breaks = seq(from = 1, to = 17, by = 4)) +
+  
+  # Editing some of the visual aspects of the plot
+  labs(x = "Time (hours)", y = "OD<sub>600</sub>") +
+  guides(fill = guide_legend(title = "", ncol = 1, byrow = TRUE),
+         color = guide_legend(title = "", ncol = 1, byrow = TRUE),
+         shape = guide_legend(title = "", ncol = 1, byrow = TRUE),) +
+  # below we use our custom palette vectors. In this instance we want color and fill to be the same,
+  # so we will repeat it...
+  scale_color_manual(values = fill_vector) +
+  scale_fill_manual(values = fill_vector) +
+  
+  # separates the plot between species
+  facet_wrap(~ readableCondition,  strip.position = "top", nrow = 2) +
+  
+  # setting up the theme
+  theme_light(base_size = 16) +
+  theme(
+        axis.title.x = element_markdown(size = rel(1.3), color = "black"),
+        axis.text.x = element_markdown(size = rel(1.2), color = "black"),
+        axis.title.y = element_markdown(size = rel(1.3), color = "black"),
+        axis.text.y = element_markdown(size = rel(1.2), color = "black"),
+
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(30,10,10,20), "pt"),
+
+        legend.spacing.y = unit(10, "pt"),
+        legend.spacing.x = unit(15, "pt"),
+        legend.box.spacing = unit(0, "pt"),
+        legend.position = "right",
+        legend.key = element_rect(color = "grey60", size = 0.1),
+        legend.key.size = unit(25, "pt"),
+        legend.box.margin = margin(12,0,0,0, unit = "pt"),
+        legend.text = ggtext::element_markdown(size = rel(1.05)),
+
+        strip.background = element_blank(),
+        strip.text = ggtext::element_markdown(color = "black", size = rel(1.1)),
+        strip.placement = "outside"
+        )
+
+```
+
+We can similarly plot the normalized fluorescence curve:
+
+```{r fig.width=10, fig.align='center'}
+analysis |>
+  ggplot(aes(x = Repeat, y = `norm.GFP_Mean`)) +
+  geom_point(aes(color = readableName, fill = readableName),
+             stroke = 0.7, size = 4, alpha = 0.8) +
+  geom_ribbon(aes(ymin = `norm.GFP_Mean` - `norm.GFP_SD`,
+                  ymax = `norm.GFP_Mean` + `norm.GFP_SD`,
+                  fill = readableName),
+              alpha = 0.1) +
+  scale_y_continuous(trans = "log10") +
+  scale_x_continuous(labels = ~ {(.x - 1)/2}, breaks = seq(from = 1, to = 17, by = 4)) +
+  labs(x = "Time (hours)", y = "Normalized Fluorescence (log<sub>10</sub>)") +
+  guides(fill = guide_legend(title = "", ncol = 1, byrow = TRUE),
+         color = guide_legend(title = "", ncol = 1, byrow = TRUE),
+         shape = guide_legend(title = "", ncol = 1, byrow = TRUE),) +
+  scale_color_manual(values = fill_vector) +
+  scale_fill_manual(values = fill_vector) +
+  facet_wrap(~ readableCondition,  strip.position = "top", nrow = 2) +
+  theme_light(base_size = 16) +
+  # coord_fixed(ratio = 0.2) +
+  theme(axis.title.x = ggtext::element_markdown(size = rel(1.3), color = "black"),
+        axis.text.x = ggtext::element_markdown(size = rel(1.2), color = "black"),
+        axis.title.y = ggtext::element_markdown(size = rel(1.3), color = "black"),
+        axis.text.y = ggtext::element_markdown(size = rel(1.2), color = "black"),
+
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(30,10,10,20), "pt"),
+
+        legend.spacing.y = unit(10, "pt"),
+        legend.spacing.x = unit(15, "pt"),
+        legend.box.spacing = unit(0, "pt"),
+        legend.position = "right",
+        legend.key = element_rect(color = "grey60", size = 0.1),
+        legend.key.size = unit(25, "pt"),
+        legend.box.margin = margin(12,0,0,0, unit = "pt"),
+        legend.text = ggtext::element_markdown(size = rel(1.05)),
+
+        strip.background = element_blank(),
+        strip.text = ggtext::element_markdown(color = "black", size = rel(1.1)),
+        strip.placement = "outside")
+```
+
+## Investigating the fluorescence at 4h
+
+The repeat variable in the data
+
+```{r}
+choosePoint <- 5
+
+```
+
+```{r}
+
+# collect the individual replicates into a single table
+anova_dataset <- exp_list %>%
+  purrr::map_dfr(4) %>%
+  dplyr::filter(Repeat == choosePoint) %>% # we will select only the fifth repeat aka point 4 hours
+  dplyr::select(Sample, Condition, norm.GFP)
+
+# adjust the linear model
+anova <- aov(formula = log(norm.GFP) ~ Sample * Condition, data = anova_dataset)
+
+# perform post-hoc correction and pairwise comparisons
+tukey <- TukeyHSD(anova)
+
+# 
+tukey.lcd <- multcompView::multcompLetters4(object = anova, comp = tukey, reversed = TRUE) %>%
+  purrr::pluck(3) %>%
+  purrr::pluck(1) %>%
+  enframe(name = "uniqueID", value = "tukeyCode")
+
+
+```
+
+```{r fig.width=7, fig.align='center', warning=FALSE, message=FALSE}
+
+
+factor <- 1e4 # the factor allow us to make the numbers more manageable in the visualization
+factor_label <- str_count(factor, '0') # this will help us display the multiplication factor in a tidy way in the plot
+
+
+analysis |>
+  # we will simplify the values by dividing them by the "factor" set above
+  mutate(norm.GFP_Mean = norm.GFP_Mean/factor,
+         norm.GFP_SD = norm.GFP_SD/factor) |>
+  # we will only plot the point values of interest
+  dplyr::filter(Repeat == choosePoint) |>
+  # add the tukey results to the table for plotting
+  left_join(tukey.lcd) |>
+  ggplot(aes(
+    x = readableName,
+    y = norm.GFP_Mean,
+    fill = readableName)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  geom_errorbar(aes(ymin = norm.GFP_Mean - norm.GFP_SD,
+                    ymax = norm.GFP_Mean + norm.GFP_SD),
+                stat = "identity",
+                position = "dodge",
+                width = 0.1,
+                color = "black") +
+  guides(fill = guide_legend(title = "", byrow = TRUE), x = "axis_truncated") +
+  scale_color_manual(values = color_vector) +
+  scale_fill_manual(values = fill_vector) +
+  facet_wrap(~ readableCondition,  strip.position = "bottom") +
+  scale_y_continuous(n.breaks = 6) +
+  labs(x = "", y = glue::glue("Normalized fluorescence (x10^{factor_label} A.U.)")) +
+  theme_light(base_size = 20) +
+  theme(axis.text.x = element_blank(),
+        axis.title.y = ggtext::element_markdown(size = rel(0.8)),
+        axis.text.y = ggtext::element_markdown(size = rel(1), color = "black"),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.spacing.y = unit(2, "pt"),
+        legend.box.spacing = unit(0, "pt"),
+        legend.position = c(0.265,.85),
+        plot.margin = unit(c(20,0,-10,20), "pt"),
+        axis.line.x.bottom = element_line(color = 'black'),
+        axis.line.y.left = element_line(color = 'black', size = 0.8),
+        panel.border = element_blank(),
+        panel.spacing.x = unit(20, "pt"),
+        legend.text = ggtext::element_markdown(),
+        strip.background = element_blank(),
+        strip.text = ggtext::element_markdown(color = "black"),
+        strip.placement = "outside")
+
+
+```
