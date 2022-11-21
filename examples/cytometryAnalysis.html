@@ -517,9 +517,12 @@ plotGate(data = coli_tibble,
 step, which is measuring the fluorescence in the microbial cells
 carrying different versions of the plasmids under investigation.
 Fluorescence was recorded in the FITC channel of the cytometer, and is
-expressed with arbitrary units (A.U.). We arbitrarily use 10^2 A.U. as a
-threshold for defining fluorescent/non-fluorescent cell populations and
-calculating their relative proportions. Here, we use the custom function
+expressed with arbitrary units (A.U.). Due to automatic correction
+performed by the device, it is important to note that this value
+<em>can</em> be negative, but we omit large negative values from the
+plot for clarity. We arbitrarily use 100 A.U. as a threshold for
+defining fluorescent/non-fluorescent cell populations and calculating
+their relative proportions. Here, we use the custom function
 <code>distributionPlot()</code> to automatically generate figures like
 those found in the manuscript.</p>
 <pre class="r"><code># the vizParam() custom function helps us select some information to be plotted
