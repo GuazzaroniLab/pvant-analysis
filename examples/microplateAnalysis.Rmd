@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## About this analysis
 
-This analysis depends on the `data/growth_curves` directory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is available through [GitHub](github.com/viana-guilherme/mipreadr). In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated Wells) for each biological replicate. The `.txt` files in the data directory come directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the plate designs used in each experiment, and are needed for the mipreadr workflow
+This analysis depends on the `data/growth_curves` subdirectory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is available through [GitHub](https://github.com/viana-guilherme/mipreadr). In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated wells) for each biological replicate. The `.txt` files in the data directory comes directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the 96-well plate designs used in each experiment, and are needed for the mipreadr workflow
 
 ## Setting up the analysis
 
@@ -25,7 +25,7 @@ library(tidyverse)    # loads the tidyverse...
 #remotes::install_github("viana-guilherme/mipreadr")
 library(mipreadr)     # loads the analysis package
 
-# the packages below are also through this analysis, be sure to have those installed
+# the packages below are also used through this analysis, be sure to have those installed
 library(ggtext)       # used for plotting
 library(gt)           # used for helping define the color palettes
 library(ggh4x)        # used for plotting
@@ -34,7 +34,7 @@ library(multcompView) # used for getting significance levels as letters in the T
 
 ## Importing data
 
-This is straightforward using the mipreadr workflow:
+This is straightforward using the mipreadr workflow. We first read the files into R, then automatically the technical replicates for the samples have the blank values subtracted and are averaged based on the plate layouts provided. The `normalizeFluorescence` argument generates a new column for GFP/OD values. Afte this, the biological samples from different experiments are also collapsed. This is all done with the `addPlate` and `mergePlates()` functions.
 
 ```{r message=FALSE}
 
@@ -64,11 +64,11 @@ analysis <- mergePlates(exp_list)
 head(analysis)
 ```
 
-## 2. Visualizing growth and normalized fluorescence curves
+## Visualizing growth and normalized fluorescence curves
 
 Once we have successfully read and pre-processed the data, we can explore the results using a variety of visualizations. In the code blocks below, we will plot the growth and the normalized fluorescence curves for the entire experiment.
 
-To start things off, we will append some metadata - including a custom color palette - onto the analysis data frame so that we have more flexibility for plotting:
+In order to have have more flexibility for plotting, we will append some metadata - including a custom color palette - onto the analysis data frame:
 
 ```{r}
 
@@ -113,25 +113,18 @@ analysis <- analysis |>
           readableName == "pVANT-∅" ~ colorPalette[4],
           readableName == "pVANT-*gfplva*" ~ colorPalette[5],
           readableName == "pVANT-P*j100*-*gfplva*" ~ colorPalette[6]
-          ),
-        # this part provides a darker version of the color palette for specific effects
-        dark_color = adjust_luminance(light_color, -1)
+          )
   )
 ```
 
-We also will define named `color` and `fill` vectors to consistently color our samples in the plots based on the dark_color and light_color columns we just created
+We also will define a named color vector to consistently color our samples in the plots based on the `light_color` column we just created
 
 ```{r}
 
-color_vector <- analysis |>
-  select(readableName, dark_color) |>
-  distinct() |>
-  deframe()
-
-fill_vector <- analysis |>
+custom_colors <- analysis |>
   select(readableName, light_color) |>
   distinct() |>
-  deframe()
+  deframe() # make a 2-column tibble into a named vector
 
 ```
 
@@ -160,19 +153,19 @@ analysis |>
          shape = guide_legend(title = "", ncol = 1, byrow = TRUE),) +
   # below we use our custom palette vectors. In this instance we want color and fill to be the same,
   # so we will repeat it...
-  scale_color_manual(values = fill_vector) +
-  scale_fill_manual(values = fill_vector) +
+  scale_color_manual(values = custom_colors) +
+  scale_fill_manual(values = custom_colors) +
   
   # separates the plot between species
   facet_wrap(~ readableCondition,  strip.position = "top", nrow = 2) +
   
   # setting up the theme
-  theme_light(base_size = 16) +
+  theme_light(base_size = 11) +
   theme(
         axis.title.x = element_markdown(size = rel(1.3), color = "black"),
-        axis.text.x = element_markdown(size = rel(1.2), color = "black"),
+        axis.text.x = element_markdown(size = rel(1.4), color = "black"),
         axis.title.y = element_markdown(size = rel(1.3), color = "black"),
-        axis.text.y = element_markdown(size = rel(1.2), color = "black"),
+        axis.text.y = element_markdown(size = rel(1.4), color = "black"),
 
         axis.ticks = element_blank(),
         panel.grid = element_blank(),
@@ -211,14 +204,14 @@ analysis |>
   guides(fill = guide_legend(title = "", ncol = 1, byrow = TRUE),
          color = guide_legend(title = "", ncol = 1, byrow = TRUE),
          shape = guide_legend(title = "", ncol = 1, byrow = TRUE),) +
-  scale_color_manual(values = fill_vector) +
-  scale_fill_manual(values = fill_vector) +
+  scale_color_manual(values = custom_colors) +
+  scale_fill_manual(values = custom_colors) +
   facet_wrap(~ readableCondition,  strip.position = "top", nrow = 2) +
-  theme_light(base_size = 16) +
+  theme_light(base_size = 11) +
   theme(axis.title.x = ggtext::element_markdown(size = rel(1.3), color = "black"),
-        axis.text.x = ggtext::element_markdown(size = rel(1.2), color = "black"),
+        axis.text.x = ggtext::element_markdown(size = rel(1.4), color = "black"),
         axis.title.y = ggtext::element_markdown(size = rel(1.3), color = "black"),
-        axis.text.y = ggtext::element_markdown(size = rel(1.2), color = "black"),
+        axis.text.y = ggtext::element_markdown(size = rel(1.4), color = "black"),
 
         axis.ticks = element_blank(),
         panel.grid = element_blank(),
@@ -240,7 +233,11 @@ analysis |>
 
 ## Investigating the fluorescence at 4h
 
-To gain a better understanding of the differences between our bacterial strains carrying different plasmids, we will look in more detail at an intermediate point in the growth curve. The "Repeat" column in the dataset refers to the point collected by the machine in different moments of the experiment (1 being the first timepoint at To, 2 being the point taken after 30 minutes, 3 being the point taken after one hour...). We can choose the timepoint at 4 hours and save it in a `choosePoint` variable, so that we have a convenient way to subset our data.
+To gain a better understanding of the bacterial strains carrying the different plasmids under investigation, we will look in more detail at an intermediate point in the growth curve.
+
+The `Repeat` column in the data set refers to the point collected by the machine in distinct moments during the experiment (1 being the first time point measured, 2 being the point taken after 30 minutes, 3 being the point taken after one hour...).  
+
+We may choose the time point at 4 hours (the fifth time point) and save this value in a `choosePoint` variable, so that we have a convenient way to subset the data from now on.
 
 ```{r}
 # selecting the Repeat value that corresponds to the fourth hour of the experiment
@@ -248,14 +245,14 @@ choosePoint <- 5
 
 ```
 
-Now we may proceed to the statistical analysis of the data. For this, after subsetting the original data to only include the point where Repeat is equal to choosePoint, we will adjust a linear model and perform the Tukey post-hoc test for multiple comparisons. With this, we will create a `tukey.lcd` with the letter codes for each significance group in our analysis.
+We now may proceed to the statistical analysis of the data. For this, after subsetting the original data to only include the point where `Repeat` is equal to `choosePoint`, we will adjust a linear model and perform the Tukey post-hoc test for multiple comparisons. With this, we will create a `tukey.lcd` with the letter codes for each significance group in our analysis.
 
 ```{r}
 
 # collect the individual replicates into a single table
-anova_dataset <- exp_list %>%
-  purrr::map_dfr(4) %>% # return the fourth table within every element of the exp_list (the results)
-  dplyr::filter(Repeat == choosePoint) %>% # we are interested only the fifth repeat in the experiments
+anova_dataset <- exp_list %>% # we need to refer back to the list with separated experiments exp_list
+  purrr::map_dfr(4) %>% # return the fourth table within every element of the exp_list (the results themselves)
+  dplyr::filter(Repeat == choosePoint) %>% # return only the rows for the fifth repeat
   dplyr::select(Sample, Condition, norm.GFP)
 
 # adjust the linear model
@@ -276,7 +273,7 @@ summary(anova)
 
 After obtaining the ANOVA results, we may visualize the resulting information alongside the means for normalized fluorescence as below:
 
-```{r fig.width=7, fig.align='center', warning=FALSE, message=FALSE}
+```{r fig.width=8, fig.align='center', warning=FALSE, message=FALSE}
 
 # first, let's define a "factor" with which to scale our data
 factor <- 1e4 # the factor allow us to make the numbers more manageable in the visualization
@@ -307,10 +304,11 @@ analysis |>
                 position = "dodge",
                 width = 0.1,
                 color = "black") +
+  # add the letter codes to the bars
+  geom_text(aes(y = norm.GFP_Mean + norm.GFP_SD + 5.5, label = tukeyCode), size = 4) +
   # cosmetic changes to the plot
   guides(fill = guide_legend(title = "", byrow = TRUE), x = "axis_truncated") +
-  scale_color_manual(values = color_vector) +
-  scale_fill_manual(values = fill_vector) +
+  scale_fill_manual(values = custom_colors) +
   facet_wrap(~ readableCondition,  strip.position = "bottom") +
   scale_y_continuous(n.breaks = 6) +
   # adding the custom y-axis title
@@ -336,3 +334,11 @@ analysis |>
 
 
 ```
+
+
+## About the session
+
+```{r}
+sessionInfo()
+```
+
