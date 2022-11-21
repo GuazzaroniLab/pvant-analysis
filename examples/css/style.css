@@ -1,3 +1,44 @@
+:root {
+  --main: #660066;
+  --silver: #808080;
+}
+
+div#header {
+  margin-bottom: 50px;
+}
+
+h1 {
+  font-size: 20pt;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: var(--main);
+}
+
+h2 {
+  margin-bottom: 20px;
+  margin-top: 30px;
+  font-size: 16pt;
+  font-weight: bold;
+  color: var(--main);
+}
+
+h4.author, h4.date {
+  font-size: 14pt;
+}
+
+h4.date {
+  color: var(--silver);
+  margin-top: 20px;
+}
+
 p {
-  line-height: 2
+  line-height: 1.75;
+  font-size: 13pt;
+  text-align: justify;
+  text-justify: inter-word;
  }
+
+pre.r {
+  padding: 5px;
+}
+

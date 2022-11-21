@@ -1,5 +1,5 @@
 ---
-title: "Microplate data analysis"
+title: "Microplate reader data analysis"
 author: "Guilherme Marcelino Viana de Siqueira and María-Eugenia Guazzaroni"
 date: "November, 2022"
 output:
@@ -13,9 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## About this analysis
 
-This analysis depends on the `data/growth_curves` subdirectory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is available through [GitHub](https://github.com/viana-guilherme/mipreadr). In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated wells) for each biological replicate. The `.txt` files in the data directory comes directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the 96-well plate designs used in each experiment, and are needed for the mipreadr workflow
+This analysis depends on the `data/growth_curves` subdirectory found in the root directory for this project and on the `mipreadr` *ad-hoc* package that is available through [GitHub](https://github.com/viana-guilherme/mipreadr). The `growth_curves/` subdirectory contain data from different microbial growth experiments. In each experiment, the plate contained at least two biological replicates (from different colonies) of *E. coli* DH10B and/or *P. putida* KT2440 and three technical replicates (repeated wells) for each biological replicate. The `.txt` files in the data directory comes directly from a Perkin Elmer Victor X3 machine set to read absorbance and fluorescence at periodic time points. The `.xlsx` files are the 96-well plate designs used in each experiment, and are needed for the mipreadr workflow
 
-## Setting up the analysis
+## Set up
 
 To start the analysis, we must first load the required packages. If needed, uncomment the line starting with `remotes::install_github()` line to install the development version of mipreadr before loading it.
 
@@ -336,7 +336,7 @@ analysis |>
 ```
 
 
-## About the session
+## About R
 
 ```{r}
 sessionInfo()
