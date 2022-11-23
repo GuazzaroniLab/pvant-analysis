@@ -428,7 +428,7 @@ workflow</p>
 <h2>Set up</h2>
 <p>To start the analysis, we must first load the required packages. If
 needed, uncomment the line starting with
-<code>remotes::install_github()</code> line to install the development
+<code>remotes::install_github()</code> to install the development
 version of mipreadr before loading it.</p>
 <pre class="r"><code>library(tidyverse)    # loads the tidyverse...
 
@@ -444,13 +444,15 @@ library(multcompView) # used for getting significance levels as letters in the T
 <div id="importing-data" class="section level2">
 <h2>Importing data</h2>
 <p>This is straightforward using the mipreadr workflow. We first read
-the files into R, then automatically the technical replicates for the
-samples have the blank values subtracted and are averaged based on the
-plate layouts provided. The <code>normalizeFluorescence</code> argument
-generates a new column for GFP/OD values. Afte this, the biological
-samples from different experiments are also collapsed. This is all done
-with the <code>addPlate</code> and <code>mergePlates()</code>
-functions.</p>
+the files into R using the <code>addPlate()</code> function, which also
+subtracts the blank values from the experimental wells and averages the
+technical replicates based on the plate layouts provided. The
+<code>normalizeFluorescence</code> argument passed to this function
+generates a new column for GFP/OD values that will be useful for
+comparing relative fluorescence levels across samples. After this, the
+biological samples from different experiments are collapsed with
+<code>mergePlates()</code>, which takes a list of experiments as its
+sole parameter.</p>
 <pre class="r"><code># reading the VictorX3 data into R using the mipreadr function addPlate()
 exp01 &lt;- addPlate(file = &quot;../data/growth_curves/2212.txt&quot;,
                   layout = &quot;../data/growth_curves/2212.xlsx&quot;,
@@ -493,9 +495,9 @@ head(analysis)</code></pre>
 explore the results using a variety of visualizations. In the code
 blocks below, we will plot the growth and the normalized fluorescence
 curves for the entire experiment.</p>
-<p>In order to have have more flexibility for plotting, we will append
-some metadata - including a custom color palette - onto the analysis
-data frame:</p>
+<p>In order to have more flexibility for plotting, we will append some
+metadata - including a custom color palette - onto the analysis data
+frame:</p>
 <pre class="r"><code>### Define a manual color vector for coloring the plots consistently ----
 basecolors &lt;- RColorBrewer::brewer.pal(9, name = &quot;Spectral&quot;) |&gt;
   gt::adjust_luminance(steps = -0.1)
@@ -657,12 +659,12 @@ save this value in a <code>choosePoint</code> variable, so that we have
 a convenient way to subset the data from now on.</p>
 <pre class="r"><code># selecting the Repeat value that corresponds to the fourth hour of the experiment
 choosePoint &lt;- 5</code></pre>
-<p>We now may proceed to the statistical analysis of the data. For this,
+<p>We may now proceed to the statistical analysis of the data. For this,
 after subsetting the original data to only include the point where
 <code>Repeat</code> is equal to <code>choosePoint</code>, we will adjust
 a linear model and perform the Tukey post-hoc test for multiple
-comparisons. With this, we will create a <code>tukey.lcd</code> with the
-letter codes for each significance group in our analysis.</p>
+comparisons. With this, we will create a <code>tukey.lcd</code> table,
+with the letter codes for each significance group in our analysis.</p>
 <pre class="r"><code># collect the individual replicates into a single table
 anova_dataset &lt;- exp_list %&gt;% # we need to refer back to the list with separated experiments exp_list
   purrr::map_dfr(4) %&gt;% # return the fourth table within every element of the exp_list (the results themselves)

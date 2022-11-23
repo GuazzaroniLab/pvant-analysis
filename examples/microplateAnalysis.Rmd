@@ -17,7 +17,7 @@ This analysis depends on the `data/growth_curves` subdirectory found in the root
 
 ## Set up
 
-To start the analysis, we must first load the required packages. If needed, uncomment the line starting with `remotes::install_github()` line to install the development version of mipreadr before loading it.
+To start the analysis, we must first load the required packages. If needed, uncomment the line starting with `remotes::install_github()` to install the development version of mipreadr before loading it.
 
 ```{r results='hide', error=FALSE, warning=FALSE, message=FALSE}
 library(tidyverse)    # loads the tidyverse...
@@ -34,7 +34,7 @@ library(multcompView) # used for getting significance levels as letters in the T
 
 ## Importing data
 
-This is straightforward using the mipreadr workflow. We first read the files into R, then automatically the technical replicates for the samples have the blank values subtracted and are averaged based on the plate layouts provided. The `normalizeFluorescence` argument generates a new column for GFP/OD values. Afte this, the biological samples from different experiments are also collapsed. This is all done with the `addPlate` and `mergePlates()` functions.
+This is straightforward using the mipreadr workflow. We first read the files into R using the `addPlate()` function, which also subtracts the blank values from the experimental wells and averages the technical replicates based on the plate layouts provided. The `normalizeFluorescence` argument passed to this function generates a new column for GFP/OD values that will be useful for comparing relative fluorescence levels across samples. After this, the biological samples from different experiments are collapsed with `mergePlates()`, which takes a list of experiments as its sole parameter.
 
 ```{r message=FALSE}
 
@@ -68,7 +68,7 @@ head(analysis)
 
 Once we have successfully read and pre-processed the data, we can explore the results using a variety of visualizations. In the code blocks below, we will plot the growth and the normalized fluorescence curves for the entire experiment.
 
-In order to have have more flexibility for plotting, we will append some metadata - including a custom color palette - onto the analysis data frame:
+In order to have more flexibility for plotting, we will append some metadata - including a custom color palette - onto the analysis data frame:
 
 ```{r}
 
@@ -245,7 +245,7 @@ choosePoint <- 5
 
 ```
 
-We now may proceed to the statistical analysis of the data. For this, after subsetting the original data to only include the point where `Repeat` is equal to `choosePoint`, we will adjust a linear model and perform the Tukey post-hoc test for multiple comparisons. With this, we will create a `tukey.lcd` with the letter codes for each significance group in our analysis.
+We may now proceed to the statistical analysis of the data. For this, after subsetting the original data to only include the point where `Repeat` is equal to `choosePoint`, we will adjust a linear model and perform the Tukey post-hoc test for multiple comparisons. With this, we will create a `tukey.lcd` table, with the letter codes for each significance group in our analysis.
 
 ```{r}
 

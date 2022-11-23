@@ -18,7 +18,7 @@ The repository is organized as follows:
 
     In the 96-well microplates, in general, different technical replicates are laid in horizontally (column-wise) adjacent wells, while biological replicates are laid in different rows. Samples are labeled with respect to their vector, with `pSEVA`/`pVANT` corresponding to the empty vectors described in the manuscript, `pSEVA.GFP`/`pVANT.GFP` corresponding to the vectors containing *gfplva,* but no promoter, and `pSEVA.P100.GFP`/`pSEVA.P100.GFP` corresponding to the vectors containing both *gfplva* and the constitutive promoter. This information is followed by an underscore and the host (either `#Ecoli` or `#Pputida`), which is also treated as a "blank" in the mipreadr workflow.
 
-2.  `examples/`: Contains step-by-step analysis examples for microplate reader  data (microplateAnalysis.Rmd) and flow cytometry data (cytometryAnalysis.Rmd) in RMarkdown format. These documents can also be found as pre-compiled `.html` files that can be read in any browser.
+2.  `examples/`: Contains step-by-step analysis examples for microplate reader data (microplateAnalysis.Rmd) and flow cytometry data (cytometryAnalysis.Rmd) in RMarkdown format. These documents can also be found as pre-compiled `.html` files that can be read in any browser.
 
 3.  `pvant.RProj`: RStudio project file associated with this working directory and R environment. Please use this file to open RStudio with the correct settings.
 

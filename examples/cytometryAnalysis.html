@@ -472,10 +472,10 @@ coli_filter &lt;- flowCore::filter(coli$flowSet, coli_gate)
 coli_P1 &lt;- flowCore::Subset(coli$flowSet, coli_filter)</code></pre>
 <p>After this, the <code>putida_P1</code> and <code>coli_P1</code>
 variables hold the events contained within the gate. At the moment our
-data is contained as a <code>flowSet</code> object. We will use the
-<code>cyto2tibble()</code> custom function to retrieve this information
-as a more manageable tibble so that we can explore different aspects of
-it.</p>
+data is still contained as a <code>flowSet</code> object. We will use
+the <code>cyto2tibble()</code> custom function to retrieve this
+information as a more manageable tibble so that we can explore different
+aspects of it.</p>
 <pre class="r"><code># accessing data as tibbles
 
 # the original data
@@ -522,9 +522,10 @@ performed by the device, it is important to note that this value
 <em>can</em> be negative, but we omit large negative values from the
 plot for clarity. We arbitrarily use 100 A.U. as a threshold for
 defining fluorescent/non-fluorescent cell populations and calculating
-their relative proportions. Here, we use the custom function
-<code>distributionPlot()</code> to automatically generate figures like
-those found in the manuscript.</p>
+their relative proportions.</p>
+<p>Here, we use the custom function <code>distributionPlot()</code> to
+automatically generate a figure like the one preset in the
+manuscript.</p>
 <pre class="r"><code># the vizParam() custom function helps us select some information to be plotted
 visPutida &lt;- vizParam(&quot;R3&quot;, putida)
 visColi &lt;- vizParam(&quot;R3&quot;, coli)
