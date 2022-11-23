@@ -187,7 +187,7 @@ analysis |>
 
 ```
 
-We can similarly plot the normalized fluorescence curve:
+And we may also plot the normalized fluorescence curve:
 
 ```{r fig.width=10, fig.align='center'}
 analysis |>
