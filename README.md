@@ -1,4 +1,4 @@
-This repository contain all data and analysis examples for the manuscript **"A termination-aware vector design improves heterologous expression in *Pseudomonas putida*"**. Details on how the repository is structured and to use the code are provided below.
+This repository contain all data and analysis examples for the manuscript **"Host-Dependent Improvement of GFP Expression in *Pseudomonas putida* KT2440 Using Terminators of Metagenomic Origin"** (now published in [ACS Synthetic Biology]( https://doi.org/10.1021/acssynbio.3c00098)). Details on how the repository is structured and to use the code are provided below.
 
 ## Pre-requisites
 
@@ -36,4 +36,4 @@ To avoid any potential issues with relative paths for the data directories and t
 
 ## Contact information
 
-We will be happy to answer if there are any questions or issues found in this repository. Please write to María-Eugenia Guazzaroni at [meguazzaroni\@ffclrp.usp.br](mailto:meguazzaroni@ffclrp.usp.br)
+We will be happy to answer if there are any questions or issues found in this repository. Please write to corresponding author María-Eugenia Guazzaroni at [meguazzaroni\@ffclrp.usp.br](mailto:meguazzaroni@ffclrp.usp.br)
